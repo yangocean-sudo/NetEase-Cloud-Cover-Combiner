@@ -5,6 +5,7 @@ const async = require("async");
 const request = require("request");
 const path = require("path");
 const sharp = require('sharp');
+const { download } = require('express/lib/response');
 
 const imageSize = 100; // Size of each individual image (adjust as needed)
 const gridSize = 15; // Number of images in each row and column
@@ -86,48 +87,35 @@ http.get('http://localhost:3000/playlist/track/all?id=8612509110', function (res
         json += chunk
     })
 
-    res.on('end', function () {
+    res.on('end', async function () {
         try {
             const playlistData = JSON.parse(json)
             const songs = playlistData.songs
             const downloadPromises = []
 
+            // print total number of songs
+            console.log("Total number of songs:", songs.length)
             for (let i = 0; i < songs.length; i++) {
                 const al = songs[i]
                 if (!downloadList.includes(al.al.picUrl)) {
+                    const filename = path.basename(al.al.picUrl);
+                    const dest = path.join(__dirname, 'images', filename);
                     downloadList.push(al.al.picUrl)
-                    downloadPromises.push(downloadImage(al.al.picUrl, dest))
+                    downloadImage(al.al.picUrl, dest)
+                    // downloadImage(al.al.picUrl, dest)
+                    console.log('Downloading image number: ', i + 1)
                 }
             }
 
-            async.each(
-                downloadList,
-                (url, callback) => {
-                    retry(
-                        (cb) => {
-                            const filename = path.basename(url);
-                            const dest = path.join(__dirname, 'images', filename);
-                            downloadImage(url, dest, cb);
-                        },
-                        {
-                            retries: 3, // Number of retry attempts
-                            minTimeout: 1000, // Minimum delay between retries in milliseconds
-                        },
-                        callback
-                    );
-                },
-                (err) => {
-                    if (err) {
-                        console.error('Error downloading images:', err)
-                    } else {
-                        console.log('All images downloaded successfully.')
-                    }
-                }
-            )
+            // await Promise.all(downloadPromises)
+            // console.log('All images downloaded successfully.')
+
+            // await combineImages()
+            // console.log('Images combined successfully.')
         } catch (error) {
             console.error('Error parsing JSON: ', error)
         }
-        // Function to combine images
-        combineImages();
     })
+}).on('error', function (error) {
+    console.error('HTTP request error:', error)
 })
