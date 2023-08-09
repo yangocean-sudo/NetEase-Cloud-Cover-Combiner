@@ -6,7 +6,6 @@ const request = require("request");
 const path = require("path");
 const sharp = require('sharp');
 const retry = require('retry');
-// const gridSize = 10
 const imageSize = 100; // Size of each individual image (adjust as needed)
 const imagesPath = path.join(__dirname, 'images');
 const outputImagePath = path.join(__dirname, 'combined.jpg');
@@ -37,10 +36,6 @@ const combineImages = async () => {
             imageFiles.map(async (filename) => {
                 const imagePath = path.join(imagesPath, filename)
                 const image = await sharp(imagePath).toBuffer()
-
-                // const image = await sharp(imagePath).resize(imageSize, imageSize).toBuffer()
-                // const resizedImagePath = path.join(resizedImagesPath, filename);
-                // fs.writeFileSync(resizedImagePath, image);
                 return image
             })
         )
@@ -49,7 +44,7 @@ const combineImages = async () => {
         // Calculate the dimensions of the combined image
         const combinedSize = gridSize * imageSize
 
-
+        console.log(resizedImages.length)
         // Create a new image with white background
         const combinedImage = sharp({
             create: {
@@ -84,7 +79,7 @@ const combineImages = async () => {
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-http.get('http://localhost:3000/playlist/track/all?id=8480608218', function (res) {
+http.get('http://localhost:3000/playlist/track/all?id=2230318386', function (res) {
     let json = ''
     res.on('data', function (chunk) {
         // console.log(chunk + '')
