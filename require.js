@@ -18,19 +18,17 @@ const downloadImage = (src, dest) => {
     return new Promise((resolve, reject) => {
         request.head(src, (err, res, body) => {
             if (err) {
-                return reject(err);
+                return reject(err)
             }
             request(src)
                 .pipe(fs.createWriteStream(dest))
                 .on('close', () => {
-                    resolve(dest);
-                });
+                    resolve(dest)
+                })
         });
     });
 };
 
-
-// const combineImages = async () => {
 //     try {
 //         const imageFiles = fs.readdirSync(imagesPath)
 //         const resizedImages = await Promise.all(
@@ -101,17 +99,16 @@ const sortByMainColor = async (imageFiles) => {
         const distanceB = calculateColorDistance(b.mainColor, [255, 255, 255])
         return distanceA - distanceB
     })
-
     return analyzedImages
 }
 
 const combineImagesSorted = async () => {
     try {
-        const imageFiles = fs.readdirSync(imagesPath);
-        const sortedImages = await sortByMainColor(imageFiles);
+        const imageFiles = fs.readdirSync(imagesPath)
+        const sortedImages = await sortByMainColor(imageFiles)
 
         const gridSize = Math.floor(Math.sqrt(sortedImages.length)); // Number of images in each row and column
-        const combinedSize = gridSize * imageSize;
+        const combinedSize = gridSize * imageSize
 
         // Create a new image with white background
         const combinedImage = sharp({
@@ -148,18 +145,17 @@ const combineImagesSorted = async () => {
 }
 
 const calculateColorDistance = (color1, color2) => {
-    const [r1, g1, b1] = color1;
-    const [r2, g2, b2] = color2;
-    const dr = r2 - r1;
-    const dg = g2 - g1;
-    const db = b2 - b1;
-    return Math.sqrt(dr * dr + dg * dg + db * db);
+    const [r1, g1, b1] = color1
+    const [r2, g2, b2] = color2
+    const dr = r2 - r1
+    const dg = g2 - g1
+    const db = b2 - b1
+    return Math.sqrt(dr * dr + dg * dg + db * db)
 }
 
 http.get('http://localhost:3000/playlist/track/all?id=8612509110', function (res) {
     let json = ''
     res.on('data', function (chunk) {
-        // console.log(chunk + '')
         json += chunk
     })
 
@@ -179,10 +175,6 @@ http.get('http://localhost:3000/playlist/track/all?id=8612509110', function (res
             };
 
             for (let i = 0; i < songs.length; i++) {
-                // if (downloadList.length >= gridSize * gridSize) {
-                //     console.log('Image downloading complete.')
-                //     break;
-                // }
                 const al = songs[i]
                 if (!downloadList.includes(al.al.picUrl)) {
                     const filename = path.basename(al.al.picUrl)
