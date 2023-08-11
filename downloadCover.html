@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Image Downloader</title>
+</head>
+
+<body>
+    <h1>Image Downloader</h1>
+    <form id="urlForm">
+        <label for="imageUrl">Enter Image URL:</label>
+        <input type="text" id="imageUrl" name="imageUrl" required>
+        <button type="submit">Download Image</button>
+    </form>
+
+    <div id="progressMessage"></div>
+
+    <script>
+        document.getElementById('urlForm').addEventListener('submit', function (event) {
+            event.preventDefault()
+
+            const imageUrl = document.getElementById('imageUrl').value
+
+            // Call your Node.js script with the URL
+            fetch('/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ imageUrl })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message)
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert('An error occurred. Please try again.')
+                })
+        })
+    </script>
+</body>
+
+</html>
