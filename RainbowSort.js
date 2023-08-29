@@ -32,11 +32,7 @@ const downloadImage = (src, dest) => {
 
 const analyzeMainColor = async (imagePath) => {
     const mainColor = await colorThief.getColorFromURL(imagePath)
-    // const normalizedColor = mainColor.map((color) => {
-    //     return color / 255
-    // })
     return mainColor
-    // return normalizedColor
 }
 
 // HSY FUNCTIONS
@@ -101,7 +97,6 @@ const sortByMainColor = async (imageFiles, band_deg) => {
         // const greyB = (b.mainColor[0] * 0.2126 + b.mainColor[1] * 0.7152 + b.mainColor[2] * 0.0722)
         // return greyB - greyA
         if (a.band != b.band) {
-            // console.log(a.band, b.band)
             return a.band - b.band
         }
         return b.hsY.Y - a.hsY.Y
@@ -114,50 +109,112 @@ const combineImagesSorted = async (imageName, band_deg) => {
     try {
         const imageFiles = fs.readdirSync(imagesPath)
         const sortedImages = await sortByMainColor(imageFiles, band_deg)
-        // // print the sorted images' band
-        // sortedImages.forEach(({ filename, band }) => {
-        //     console.log(filename, band)
-        // })
 
-        const gridSize = Math.floor(Math.sqrt(sortedImages.length)); // Number of images in each row and column
-        const combinedSize = gridSize * imageSize
-
-        // Create a new image with white background
+        // New code for adjusting combined image size
+        const combinedWidth = 3072
+        const combinedHeight = 1920
+        const numImages = sortedImages.length
+        // print out number of images
+        console.log('Number of images: ', numImages)
+        // Calculate desired image size
+        const targetImageSize = Math.floor(Math.sqrt(combinedWidth * combinedHeight / numImages))
+        // print out target image size
+        console.log('Target image size: ', targetImageSize)
+        // Calculate how many images per row
+        const imagesPerRow = Math.floor(numImages * targetImageSize / combinedWidth)
+        // Calculate how many images per column
+        const imagesPerColumn = Math.floor(numImages / imagesPerRow)
+        // print out images per row
+        console.log('Images per row: ', imagesPerRow)
         const combinedImage = sharp({
             create: {
-                width: combinedSize,
-                height: combinedSize,
+                width: targetImageSize * imagesPerColumn,
+                height: targetImageSize * imagesPerRow,
                 channels: 3,
                 background: { r: 255, g: 255, b: 255 }
             }
         })
 
-        const compositeOperations = [];
-        sortedImages.forEach(({ filename }, index) => {
-            if (index >= gridSize * gridSize) {
+        const compositeOperations = []
+        for (let index = 0; index < numImages; index++) {
+            if (index >= numImages) {
                 console.log('Image compositing complete.')
-                return
+                break
             }
-            const row = Math.floor(index / gridSize)
-            const col = index % gridSize
+            const row = Math.floor(index / imagesPerColumn)
+            const col = index % imagesPerColumn
+            // console.log('Row: ', row, 'Col: ', col)
+            const xPosition = col * targetImageSize
+            const yPosition = row * targetImageSize
+
+            const { filename } = sortedImages[index]
+
             const imagePath = path.join(imagesPath, filename)
             const imageBuffer = fs.readFileSync(imagePath)
-            compositeOperations.push({
-                input: imageBuffer,
-                top: row * imageSize,
-                left: col * imageSize
-            })
-        })
 
-        combinedImage.composite(compositeOperations)
+            const resizedImageBuffer = await sharp(imageBuffer)
+                .resize(targetImageSize, targetImageSize)
+                .toBuffer()
+
+            compositeOperations.push({
+                input: resizedImageBuffer,
+                top: yPosition,
+                left: xPosition
+            })
+        }
+
+
+        // const gridSize = Math.floor(Math.sqrt(sortedImages.length)); // Number of images in each row and column
+        // const combinedSize = gridSize * imageSize
+
+        // // Create a new image with white background
+        // const combinedImage = sharp({
+        //     create: {
+        //         width: combinedSize,
+        //         height: combinedSize,
+        //         channels: 3,
+        //         background: { r: 255, g: 255, b: 255 }
+        //     }
+        // })
+
+        // const compositeOperations = [];
+        // sortedImages.forEach(({ filename }, index) => {
+        //     if (index >= gridSize * gridSize) {
+        //         console.log('Image compositing complete.')
+        //         return
+        //     }
+        //     const row = Math.floor(index / gridSize)
+        //     const col = index % gridSize
+        //     const imagePath = path.join(imagesPath, filename)
+        //     const imageBuffer = fs.readFileSync(imagePath)
+        //     compositeOperations.push({
+        //         input: imageBuffer,
+        //         top: row * imageSize,
+        //         left: col * imageSize
+        //     })
+        // })
+
+        await combinedImage.composite(compositeOperations)
+
         const outputImagePath = path.join(__dirname, imageName + ".jpg")
         await combinedImage.toFile(outputImagePath, { quality: 100, force: true })
-
     } catch (error) {
         console.error('Error combining images:', error)
     }
 }
 
+// resize image function
+const resizeImage = async (imageName, width, height) => {
+    // resize the output Image
+    const outputImagePath = path.join(__dirname, imageName + ".jpg")
+    const resizedImagePath = path.join(__dirname, imageName + "_resized.jpg")
+    await sharp(outputImagePath).resize({
+        width: width,
+        height: height,
+        position: 'center',
+        fit: 'cover'
+    }).toFile(resizedImagePath, { quality: 100, force: true })
+}
 const calculateColorDistance = (color1, color2) => {
     const [r1, g1, b1] = color1
     const [r2, g2, b2] = color2
@@ -242,7 +299,8 @@ app.post('/download', async (req, res) => {
 
                 await combineImagesSorted(imageName, band_deg)
                 console.log('Images combined successfully.')
-
+                // await resizeImage(imageName, 1080, 1920)
+                console.log('Images resized successfully.')
                 // delete images folder
                 fs.rmSync(imagesPath, { recursive: true, force: true })
                 console.log('Folder has been deleted\n--------------------------')
