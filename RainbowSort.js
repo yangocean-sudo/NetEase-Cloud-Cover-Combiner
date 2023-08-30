@@ -7,6 +7,7 @@ const express = require('express')
 const bodyParser = require('body-parser')
 const sharp = require('sharp')
 const retry = require('retry')
+const looksSame = require('looks-same')
 let imageSize
 const imagesPath = path.join(__dirname, 'images')
 const outputImagePath = path.join(__dirname, 'combined.jpg')
@@ -136,6 +137,8 @@ const combineImagesSorted = async (imageName, band_deg) => {
         })
 
         const compositeOperations = []
+        const bufferList = []
+        let pushToListFlag = true
         for (let index = 0; index < numImages; index++) {
             if (index >= numImages) {
                 console.log('Image compositing complete.')
@@ -155,12 +158,33 @@ const combineImagesSorted = async (imageName, band_deg) => {
             const resizedImageBuffer = await sharp(imageBuffer)
                 .resize(targetImageSize, targetImageSize)
                 .toBuffer()
-
-            compositeOperations.push({
-                input: resizedImageBuffer,
-                top: yPosition,
-                left: xPosition
-            })
+            // loop the list and use looks-same to compare the images buffer
+            // if the image is not similar to any of the images in the list, add it to the list
+            for (let i = 0; i < bufferList.length; i++) {
+                const { equal } = await looksSame(resizedImageBuffer, bufferList[i])
+                if (equal) {
+                    console.log('Image is similar to image in list. Skipping...')
+                    pushToListFlag = false
+                    break
+                }
+            }
+            // if the list is empty, add the image to the list
+            if (index == 0) {
+                bufferList.push(resizedImageBuffer)
+                compositeOperations.push({
+                    input: resizedImageBuffer,
+                    top: yPosition,
+                    left: xPosition
+                })
+            }
+            else if (pushToListFlag) {
+                bufferList.push(resizedImageBuffer)
+                compositeOperations.push({
+                    input: resizedImageBuffer,
+                    top: yPosition,
+                    left: xPosition
+                })
+            }
         }
 
 
@@ -300,7 +324,7 @@ app.post('/download', async (req, res) => {
                 await combineImagesSorted(imageName, band_deg)
                 console.log('Images combined successfully.')
                 // await resizeImage(imageName, 1080, 1920)
-                console.log('Images resized successfully.')
+                // console.log('Images resized successfully.')
                 // delete images folder
                 fs.rmSync(imagesPath, { recursive: true, force: true })
                 console.log('Folder has been deleted\n--------------------------')
