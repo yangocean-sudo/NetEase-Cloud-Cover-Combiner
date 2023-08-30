@@ -12,6 +12,7 @@ let imageSize
 const imagesPath = path.join(__dirname, 'images')
 const outputImagePath = path.join(__dirname, 'combined.jpg')
 const colorThief = require('color-thief-node')
+const Jimp = require("jimp")
 let downloadList = []
 // fs.mkdirSync(imagesPath, { recursive: true })
 
@@ -83,20 +84,10 @@ const sortByMainColor = async (imageFiles, band_deg) => {
             const mainColor = await analyzeMainColor(imagePath)
             const hsY = rgb_to_hsY(mainColor[0], mainColor[1], mainColor[2])
             const band = await get_rainbow_band(hsY.h, band_deg)
-            // console.log(filename, band)
-            // console.log(filename, hsY.h)
             return { filename, band, hsY }
         })
     )
     analyzedImages.sort((a, b) => {
-        // // Compare main colors for sorting using Euclidean distance
-        // const distanceA = calculateColorDistance(a.mainColor, [255, 255, 255]) // Compare to white [255, 255, 255]
-        // const distanceB = calculateColorDistance(b.mainColor, [255, 255, 255])
-        // return distanceA - distanceB
-
-        // const greyA = (a.mainColor[0] * 0.2126 + a.mainColor[1] * 0.7152 + a.mainColor[2] * 0.0722)
-        // const greyB = (b.mainColor[0] * 0.2126 + b.mainColor[1] * 0.7152 + b.mainColor[2] * 0.0722)
-        // return greyB - greyA
         if (a.band != b.band) {
             return a.band - b.band
         }
@@ -106,11 +97,45 @@ const sortByMainColor = async (imageFiles, band_deg) => {
     return analyzedImages
 }
 
+// remove the similar images from the input list
+const removeSimilarImages = async (imageList) => {
+    // loop through the list, for each image in the list, comapre it with the post five images
+    // If the diff or distance is smaller than 0.1, remove the image from the list
+    for (let index = 0; index < imageList.length; index++) {
+        if (index >= imageList.length) {
+            console.log('Image compositing complete.')
+            break
+        }
+        const imageFileName = imageList[index].filename
+        const image = path.join(imagesPath, imageFileName)
+        const imageBuffer = await Jimp.read(image)
+        // console.log(imageFileName)
+        // console.log(image)
+        // compare the image with the next five images
+        for (let i = index + 1; i < index + 4; i++) {
+            if (i >= imageList.length) {
+                break
+            }
+            const nextImage = path.join(imagesPath, imageList[i].filename)
+            const nextImageBuffer = await Jimp.read(nextImage)
+            if (Jimp.distance(imageBuffer, nextImageBuffer) < 0.1 || Jimp.diff(imageBuffer, nextImageBuffer).percent < 0.1) {
+                // remove the image from the list
+                imageList.splice(i, 1)
+                i--
+                // console.log("Removed One Image")
+            }
+        }
+    }
+    return imageList
+}
+
 const combineImagesSorted = async (imageName, band_deg) => {
     try {
         const imageFiles = fs.readdirSync(imagesPath)
-        const sortedImages = await sortByMainColor(imageFiles, band_deg)
-
+        let sortedImages = await sortByMainColor(imageFiles, band_deg)
+        console.log('Number of images before removing similar images: ', sortedImages.length)
+        sortedImages = await removeSimilarImages(sortedImages)
+        console.log('Number of images after removing similar images: ', sortedImages.length)
         // New code for adjusting combined image size
         const combinedWidth = 3072
         const combinedHeight = 1920
@@ -123,6 +148,9 @@ const combineImagesSorted = async (imageName, band_deg) => {
         console.log('Target image size: ', targetImageSize)
         // Calculate how many images per row
         const imagesPerRow = Math.floor(numImages * targetImageSize / combinedWidth)
+        // if (imagesPerRow == 0) {
+        //     imagesPerRow = 1
+        // }
         // Calculate how many images per column
         const imagesPerColumn = Math.floor(numImages / imagesPerRow)
         // print out images per row
@@ -137,8 +165,6 @@ const combineImagesSorted = async (imageName, band_deg) => {
         })
 
         const compositeOperations = []
-        const bufferList = []
-        let pushToListFlag = true
         for (let index = 0; index < numImages; index++) {
             if (index >= numImages) {
                 console.log('Image compositing complete.')
@@ -158,65 +184,14 @@ const combineImagesSorted = async (imageName, band_deg) => {
             const resizedImageBuffer = await sharp(imageBuffer)
                 .resize(targetImageSize, targetImageSize)
                 .toBuffer()
-            // loop the list and use looks-same to compare the images buffer
-            // if the image is not similar to any of the images in the list, add it to the list
-            for (let i = 0; i < bufferList.length; i++) {
-                const { equal } = await looksSame(resizedImageBuffer, bufferList[i])
-                if (equal) {
-                    console.log('Image is similar to image in list. Skipping...')
-                    pushToListFlag = false
-                    break
-                }
-            }
-            // if the list is empty, add the image to the list
-            if (index == 0) {
-                bufferList.push(resizedImageBuffer)
-                compositeOperations.push({
-                    input: resizedImageBuffer,
-                    top: yPosition,
-                    left: xPosition
-                })
-            }
-            else if (pushToListFlag) {
-                bufferList.push(resizedImageBuffer)
-                compositeOperations.push({
-                    input: resizedImageBuffer,
-                    top: yPosition,
-                    left: xPosition
-                })
-            }
+
+            // bufferList.push(resizedImageBuffer)
+            compositeOperations.push({
+                input: resizedImageBuffer,
+                top: yPosition,
+                left: xPosition
+            })
         }
-
-
-        // const gridSize = Math.floor(Math.sqrt(sortedImages.length)); // Number of images in each row and column
-        // const combinedSize = gridSize * imageSize
-
-        // // Create a new image with white background
-        // const combinedImage = sharp({
-        //     create: {
-        //         width: combinedSize,
-        //         height: combinedSize,
-        //         channels: 3,
-        //         background: { r: 255, g: 255, b: 255 }
-        //     }
-        // })
-
-        // const compositeOperations = [];
-        // sortedImages.forEach(({ filename }, index) => {
-        //     if (index >= gridSize * gridSize) {
-        //         console.log('Image compositing complete.')
-        //         return
-        //     }
-        //     const row = Math.floor(index / gridSize)
-        //     const col = index % gridSize
-        //     const imagePath = path.join(imagesPath, filename)
-        //     const imageBuffer = fs.readFileSync(imagePath)
-        //     compositeOperations.push({
-        //         input: imageBuffer,
-        //         top: row * imageSize,
-        //         left: col * imageSize
-        //     })
-        // })
 
         await combinedImage.composite(compositeOperations)
 
