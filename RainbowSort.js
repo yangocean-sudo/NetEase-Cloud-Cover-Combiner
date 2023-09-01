@@ -14,7 +14,6 @@ const outputImagePath = path.join(__dirname, 'combined.jpg')
 const colorThief = require('color-thief-node')
 const Jimp = require("jimp")
 let downloadList = []
-// fs.mkdirSync(imagesPath, { recursive: true })
 
 // functions
 const downloadImage = (src, dest) => {
@@ -28,8 +27,8 @@ const downloadImage = (src, dest) => {
                 .on('close', () => {
                     resolve(dest)
                 })
-        });
-    });
+        })
+    })
 }
 
 const analyzeMainColor = async (imagePath) => {
@@ -99,32 +98,44 @@ const sortByMainColor = async (imageFiles, band_deg) => {
 
 // remove the similar images from the input list
 const removeSimilarImages = async (imageList) => {
+    const threshold = 0.1
+    const batchSize = 2
+
     // loop through the list, for each image in the list, comapre it with the post five images
     // If the diff or distance is smaller than 0.1, remove the image from the list
     for (let index = 0; index < imageList.length; index++) {
         if (index >= imageList.length) {
-            console.log('Image compositing complete.')
+            console.log('Image remove complete.')
             break
         }
-        const imageFileName = imageList[index].filename
-        const image = path.join(imagesPath, imageFileName)
+        const image = path.join(imagesPath, imageList[index].filename)
         const imageBuffer = await Jimp.read(image)
-        // console.log(imageFileName)
-        // console.log(image)
-        // compare the image with the next five images
-        for (let i = index + 1; i < index + 4; i++) {
-            if (i >= imageList.length) {
-                break
-            }
+        const batchPromises = []
+        // compare the image with the next three images
+        for (let i = index + 1; i < Math.min(index + batchSize + 1, imageList.length); i++) {
             const nextImage = path.join(imagesPath, imageList[i].filename)
-            const nextImageBuffer = await Jimp.read(nextImage)
-            if (Jimp.distance(imageBuffer, nextImageBuffer) < 0.1 || Jimp.diff(imageBuffer, nextImageBuffer).percent < 0.1) {
-                // remove the image from the list
-                imageList.splice(i, 1)
-                i--
-                // console.log("Removed One Image")
+            batchPromises.push(
+                (async () => {
+                    const nextImageBuffer = await Jimp.read(nextImage)
+                    const distance = Jimp.distance(imageBuffer, nextImageBuffer)
+                    const diffPercent = Jimp.diff(imageBuffer, nextImageBuffer).percent
+
+                    if (distance < threshold || diffPercent < threshold) {
+                        return i // Image index to remove
+                    } else {
+                        return -1 // No removal needed
+                    }
+                })()
+            )
+        }
+        const batchResults = await Promise.all(batchPromises)
+
+        for (const result of batchResults) {
+            if (result !== -1) {
+                imageList.splice(result, 1)
             }
         }
+
     }
     return imageList
 }
@@ -147,14 +158,14 @@ const combineImagesSorted = async (imageName, band_deg) => {
         // print out target image size
         console.log('Target image size: ', targetImageSize)
         // Calculate how many images per row
+        // Notice: the list can't be only one image
+        // TODO: Maybe create an if statement to handle this one image situation
         const imagesPerRow = Math.floor(numImages * targetImageSize / combinedWidth)
-        // if (imagesPerRow == 0) {
-        //     imagesPerRow = 1
-        // }
         // Calculate how many images per column
         const imagesPerColumn = Math.floor(numImages / imagesPerRow)
         // print out images per row
         console.log('Images per row: ', imagesPerRow)
+        console.log('Images per column: ', imagesPerColumn)
         const combinedImage = sharp({
             create: {
                 width: targetImageSize * imagesPerColumn,
@@ -172,7 +183,6 @@ const combineImagesSorted = async (imageName, band_deg) => {
             }
             const row = Math.floor(index / imagesPerColumn)
             const col = index % imagesPerColumn
-            // console.log('Row: ', row, 'Col: ', col)
             const xPosition = col * targetImageSize
             const yPosition = row * targetImageSize
 
@@ -185,7 +195,6 @@ const combineImagesSorted = async (imageName, band_deg) => {
                 .resize(targetImageSize, targetImageSize)
                 .toBuffer()
 
-            // bufferList.push(resizedImageBuffer)
             compositeOperations.push({
                 input: resizedImageBuffer,
                 top: yPosition,
@@ -193,7 +202,7 @@ const combineImagesSorted = async (imageName, band_deg) => {
             })
         }
 
-        await combinedImage.composite(compositeOperations)
+        combinedImage.composite(compositeOperations)
 
         const outputImagePath = path.join(__dirname, imageName + ".jpg")
         await combinedImage.toFile(outputImagePath, { quality: 100, force: true })
@@ -240,7 +249,7 @@ app.get('/', (req, res) => {
     })
 })
 
-app.post('/download', async (req, res) => {
+app.post('/download', async (req) => {
     fs.mkdirSync(imagesPath, { recursive: true })
     let imageUrlNumber = req.body.imageUrl
     let imageName = req.body.imageName
@@ -266,7 +275,7 @@ app.post('/download', async (req, res) => {
                 const retryOptions = {
                     retries: 20, // Number of retry attempts
                     minTimeout: 10000, // Minimum delay between retries in milliseconds
-                };
+                }
 
                 for (let i = 0; i < songs.length; i++) {
                     const al = songs[i]
@@ -276,18 +285,18 @@ app.post('/download', async (req, res) => {
                         const resizedpicUrl = al.al.picUrl + '?param=' + imageSize + 'y' + imageSize
                         downloadList.push(al.al.picUrl)
                         // Retry downloadImage function with retry options
-                        const operation = retry.operation(retryOptions);
-                        operation.attempt(async (currentAttempt) => {
+                        const operation = retry.operation(retryOptions)
+                        operation.attempt(async () => {
                             try {
                                 downloadPromises.push(downloadImage(resizedpicUrl, dest))
-                                console.log('Downloading image number: ', downloadList.length)
+                                // console.log('Downloading image number: ', downloadList.length)
                             } catch (err) {
                                 if (operation.retry(err)) {
-                                    return;
+                                    return
                                 }
-                                console.error('Error downloading image: ', err);
+                                console.error('Error downloading image: ', err)
                             }
-                        });
+                        })
                     }
                 }
                 await Promise.all(downloadPromises)
@@ -298,8 +307,6 @@ app.post('/download', async (req, res) => {
 
                 await combineImagesSorted(imageName, band_deg)
                 console.log('Images combined successfully.')
-                // await resizeImage(imageName, 1080, 1920)
-                // console.log('Images resized successfully.')
                 // delete images folder
                 fs.rmSync(imagesPath, { recursive: true, force: true })
                 console.log('Folder has been deleted\n--------------------------')
@@ -313,10 +320,8 @@ app.post('/download', async (req, res) => {
     }).on('error', function (error) {
         console.error('HTTP request error:', error)
     })
-
-    // res.json({ message: 'Image downloaded and processed successfully.' })
-});
+})
 
 app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
-});
+    console.log(`Server is running on port ${port}`)
+})
