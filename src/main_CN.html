@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>网易云封面合成</title>
+</head>
+
+<body>
+    <h1>网易云封面合成</h1>
+    <form id="urlForm">
+        <label for="imageName">输出图片名称:</label>
+        <input type="text" id="imageName" name="imageName" value="output" required>
+        <br>
+        <br>
+        <label for="bandDegree">色带度数:</label>
+        <input type="text" id="bandDegree" name="bandDegree" value="30" required>
+        <br>
+        <br>
+        <label for="imageSize">每张封面大小: </label>
+        <input type="text" id="imageSize" name="imageSize" value="400" required>
+        <br>
+        <br>
+        <label for="imageUrl">歌单地址:</label>
+        <input type="text" id="imageUrl" name="imageUrl" required>
+        <br>
+        <br>
+
+        <select id="outputImageSize">
+            <option> 选择输出图片大小</option>
+            <option value="1290 x 2796">1290 x 2796 (适合部分手机)</option>
+            <option value="2732 x 2048">2732 x 2048 (适合部分平板) </option>
+            <option value="3072 x 1920">3072 x 1920 (适合部分电脑) </option>
+            <option value="2048 x 2048">2048 x 2048 (高分辨率正方形)</option>
+            <option value="1024 x 1024">1024 x 1024 (低一点点分辨率正方形)</option>
+        </select>
+        <br>
+        <br>
+
+        <input type="checkbox" id="removeCheck" name="removeCheck" />
+        <label for="removeCheck">要移除重复的图片吗？这可能要花一分钟的时间</label>
+        <br>
+        <br>
+        <button type="submit">启动！</button>
+    </form>
+
+    <div id="progressMessage"></div>
+
+    <script>
+        document.getElementById('urlForm').addEventListener('submit', function (event) {
+            event.preventDefault()
+
+            const imageUrl = document.getElementById('imageUrl').value
+            const imageName = document.getElementById('imageName').value
+            const bandDegree = document.getElementById('bandDegree').value
+            const imageSize = document.getElementById('imageSize').value
+            const outputSize = document.getElementById('outputImageSize').value
+            const removeCheck = document.getElementById('removeCheck').checked
+
+            // Call your Node.js script with the URL
+            fetch('/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ imageUrl, imageName, bandDegree, imageSize, outputSize, removeCheck })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message)
+                })
+                .catch(error => {
+                    console.error('Error:', error)
+                    alert('An error occurred. Please try again.')
+                })
+        })
+    </script>
+</body>
+
+</html>

@@ -263,7 +263,7 @@ app.use(bodyParser.json())
 
 app.get('/', (req, res) => {
     // Serve your HTML file
-    const htmlPath = path.join(__dirname, 'main.html')
+    const htmlPath = path.join(__dirname, 'main_CN.html')
     fs.readFile(htmlPath, 'utf8', (err, data) => {
         if (err) {
             res.status(500).send('Error reading HTML file')
