@@ -154,6 +154,7 @@ const combineImagesSorted = async (imageName, band_deg, outputSize, removeCheck)
         let combinedWidthHeight = outputWidthHeight(outputSize)
         let combinedWidth = combinedWidthHeight[0]
         let combinedHeight = combinedWidthHeight[1]
+        console.log(combinedWidth, combinedHeight)
         const numImages = sortedImages.length
         // print out number of images
         console.log('Number of images has downloaded: ', numImages)
