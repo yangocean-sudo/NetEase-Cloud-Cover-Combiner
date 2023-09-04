@@ -58,7 +58,7 @@ $ Server is running on port 3001
 ```
 在浏览器输入网址：```http://localhost:3001/```
 就可以看到一个简陋的网页:
-![](https://github.com/yangocean-sudo/NetEase-Cloud-Cover-Combiner/blob/main/mdImages/HomePage.jpg)
+![](https://github.com/yangocean-sudo/NetEase-Cloud-Cover-Combiner/blob/main/mdImages/HomePage.png)
 ### 2. 如何使用
 #### 2.1 输出图片名称
 顾名思义，就是自定义输出的图片的名字，默认名称为`output`, 会储存在主目录下。
