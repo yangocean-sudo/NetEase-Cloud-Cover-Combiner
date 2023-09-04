@@ -2,7 +2,7 @@
 
 ## 0904 Version 0.01 Released
 成果展示：
-![](mdimages/banddegree30.jpg)
+![](https://github.com/yangocean-sudo/NetEase-Cloud-Cover-Combiner/blob/main/mdImages/banddegree30.jpg)
 
 ### 0. 下载Node Js
 如果还没有下载node js，可以去网上搜一下安装node js的教程。这里贴一个菜鸟教程的连接：
@@ -58,7 +58,7 @@ $ Server is running on port 3001
 ```
 在浏览器输入网址：```http://localhost:3001/```
 就可以看到一个简陋的网页:
-![](mdimages/HomePage.png)
+![](https://github.com/yangocean-sudo/NetEase-Cloud-Cover-Combiner/blob/main/mdImages/HomePage.jpg)
 ### 2. 如何使用
 #### 2.1 输出图片名称
 顾名思义，就是自定义输出的图片的名字，默认名称为`output`, 会储存在主目录下。
